@@ -3,9 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pink Flower</title>
+<title>Pink Flowers</title>
 <style>
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 html, body {
   margin: 0;
@@ -23,19 +25,50 @@ canvas {
 </style>
 </head>
 <body>
-<canvas id="flower"></canvas>
+<canvas id="flowers"></canvas>
 
 <script>
-const canvas = document.getElementById("flower");
+const canvas = document.getElementById("flowers");
 const ctx = canvas.getContext("2d");
 
-let width, height, unit, startTime;
-let animation;
+const LAYERS = 85;
+const POINTS = 460;
 
-const layers = 85;
-const points = 500;
+let width, height, unit;
+let animation;
+let startTime = null;
+
+const flowers = [
+  {
+    x: -230,
+    y: 40,
+    scale: 0.77,
+    tilt: -0.15,
+    delay: 550
+  },
+  {
+    x: 230,
+    y: 40,
+    scale: 0.77,
+    tilt: 0.15,
+    delay: 1100
+  },
+  {
+    x: 0,
+    y: -15,
+    scale: 1,
+    tilt: 0,
+    delay: 0
+  }
+];
+
+function clamp(value) {
+  return Math.max(0, Math.min(1, value));
+}
 
 function traceCurve(p0, p1, p2, p3, progress, color, lineWidth) {
+  if (progress <= 0) return;
+
   ctx.beginPath();
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
@@ -48,16 +81,16 @@ function traceCurve(p0, p1, p2, p3, progress, color, lineWidth) {
     const q = 1 - t;
 
     const x =
-      q*q*q*p0[0] +
-      3*q*q*t*p1[0] +
-      3*q*t*t*p2[0] +
-      t*t*t*p3[0];
+      q * q * q * p0[0] +
+      3 * q * q * t * p1[0] +
+      3 * q * t * t * p2[0] +
+      t * t * t * p3[0];
 
     const y =
-      q*q*q*p0[1] +
-      3*q*q*t*p1[1] +
-      3*q*t*t*p2[1] +
-      t*t*t*p3[1];
+      q * q * q * p0[1] +
+      3 * q * q * t * p1[1] +
+      3 * q * t * t * p2[1] +
+      t * t * t * p3[1];
 
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
@@ -66,32 +99,35 @@ function traceCurve(p0, p1, p2, p3, progress, color, lineWidth) {
   ctx.stroke();
 }
 
-function leaf(x, y, direction, progress) {
+function drawLeaf(x, y, direction, progress) {
   if (progress <= 0) return;
 
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(direction * progress, progress);
 
-  // خطوط متداخلة داخل كل ورقة.
   for (let i = 0; i < 16; i++) {
     const spread = i / 15;
 
     ctx.beginPath();
-    ctx.strokeStyle = `hsla(145, 65%, ${30 + spread * 25}%, 0.8)`;
+    ctx.strokeStyle =
+      `hsla(145, 65%, ${30 + spread * 25}%, 0.8)`;
     ctx.lineWidth = 0.8;
 
     ctx.moveTo(0, 0);
+
     ctx.bezierCurveTo(
       30, -48 * spread,
       86, -68 * spread,
       112, -69
     );
+
     ctx.bezierCurveTo(
       88, -12 * spread,
       30, 15 * spread,
       0, 0
     );
+
     ctx.stroke();
   }
 
@@ -105,12 +141,13 @@ function leaf(x, y, direction, progress) {
   ctx.restore();
 }
 
-function flowerLayer(layer, progress) {
+function drawPetals(layer, progress) {
+  if (progress <= 0) return;
+
   const size = 10 + layer * 2.28;
   const rotation = layer * 0.018;
-
-  // تدرجات بينك فقط.
   const lightness = 72 - layer * 0.24;
+
   ctx.strokeStyle = `hsl(330, 94%, ${lightness}%)`;
   ctx.lineWidth = 0.95;
   ctx.lineJoin = "round";
@@ -118,11 +155,14 @@ function flowerLayer(layer, progress) {
 
   ctx.beginPath();
 
-  const steps = Math.floor(points * progress);
+  const steps = Math.floor(POINTS * progress);
 
   for (let step = 0; step <= steps; step++) {
-    const angle = Math.PI * 2 * step / points;
-    const radius = size * (0.64 + 0.36 * Math.cos(7 * angle));
+    const angle = Math.PI * 2 * step / POINTS;
+
+    const radius =
+      size * (0.64 + 0.36 * Math.cos(7 * angle));
+
     const x = radius * Math.cos(angle + rotation);
     const y = radius * Math.sin(angle + rotation);
 
@@ -133,24 +173,16 @@ function flowerLayer(layer, progress) {
   ctx.stroke();
 }
 
-function clamp(value) {
-  return Math.max(0, Math.min(1, value));
-}
+function drawFlower(flower, elapsed) {
+  const time = elapsed - flower.delay;
+  if (time < 0) return;
 
-function render(time) {
-  if (startTime === null) startTime = time;
-  const elapsed = time - startTime;
-
-  ctx.clearRect(0, 0, width, height);
   ctx.save();
+  ctx.translate(flower.x, flower.y);
+  ctx.rotate(flower.tilt);
+  ctx.scale(flower.scale, flower.scale);
 
-  ctx.translate(width / 2, height / 2);
-  ctx.scale(unit, unit);
-
-  // إحداثيات التصميم تضمن ظهور الوردة بالكامل.
   const flowerY = -110;
-
-  const stemProgress = clamp(elapsed / 1700);
 
   ctx.shadowColor = "#31965a";
   ctx.shadowBlur = 5;
@@ -160,35 +192,62 @@ function render(time) {
     [31, 180],
     [-25, 65],
     [0, flowerY],
-    stemProgress,
+    clamp(time / 1700),
     "#49ad73",
     2.4
   );
 
   ctx.shadowBlur = 0;
 
-  leaf(9, 182, 1, clamp((elapsed - 800) / 1000));
-  leaf(-1, 107, -1, clamp((elapsed - 1200) / 1000));
+  drawLeaf(
+    9, 182, 1,
+    clamp((time - 800) / 1000)
+  );
+
+  drawLeaf(
+    -1, 107, -1,
+    clamp((time - 1200) / 1000)
+  );
 
   ctx.translate(0, flowerY);
 
-  const flowerProgress = clamp((elapsed - 1600) / 6500) * layers;
-  const completed = Math.floor(flowerProgress);
+  const progress =
+    clamp((time - 1600) / 6500) * LAYERS;
+
+  const completed = Math.floor(progress);
 
   ctx.shadowColor = "#ff328f";
   ctx.shadowBlur = 3;
 
   for (let layer = 0; layer < completed; layer++) {
-    flowerLayer(layer, 1);
+    drawPetals(layer, 1);
   }
 
-  if (completed < layers) {
-    flowerLayer(completed, flowerProgress - completed);
+  if (completed < LAYERS) {
+    drawPetals(completed, progress - completed);
+  }
+
+  ctx.restore();
+}
+
+function render(time) {
+  if (startTime === null) startTime = time;
+
+  const elapsed = time - startTime;
+
+  ctx.clearRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.scale(unit, unit);
+
+  for (const flower of flowers) {
+    drawFlower(flower, elapsed);
   }
 
   ctx.restore();
 
-  if (elapsed < 8200) {
+  if (elapsed < 9500) {
     animation = requestAnimationFrame(render);
   }
 }
@@ -206,9 +265,10 @@ function resize() {
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  unit = Math.min(width / 470, height / 690);
-  startTime = null;
+  // مساحة كافية لظهور الوردات الثلاث بالكامل.
+  unit = Math.min(width / 880, height / 720);
 
+  startTime = null;
   animation = requestAnimationFrame(render);
 }
 
