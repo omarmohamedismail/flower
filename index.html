@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rainbow Flower</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+<canvas id="flower"></canvas>
+
+<script>
+const canvas = document.getElementById("flower");
+const ctx = canvas.getContext("2d");
+
+const layers = 85;
+const points = 560;
+const petals = 7;
+
+let width, height, scale;
+let frame;
+let startTime = null;
+
+function resize() {
+  cancelAnimationFrame(frame);
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  width = window.innerWidth;
+  height = window.innerHeight;
+
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  scale = Math.min(width, height) * 0.43 / 273;
+  startTime = null;
+
+  frame = requestAnimationFrame(animate);
+}
+
+function drawLayer(layer, progress = 1) {
+  const size = (12 + layer * 3.1) * scale;
+  const rotation = layer * 0.018;
+  const hue = ((0.12 + layer * 0.007) % 1) * 360;
+
+  ctx.strokeStyle = `hsl(${hue}, 95%, 58%)`;
+  ctx.lineWidth = Math.max(0.65, scale * 1.05);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  ctx.beginPath();
+
+  const steps = Math.floor(points * progress);
+
+  for (let step = 0; step <= steps; step++) {
+    const angle = Math.PI * 2 * step / points;
+    const radius = size * (
+      0.64 + 0.36 * Math.cos(petals * angle)
+    );
+
+    const x = width / 2 + radius * Math.cos(angle + rotation);
+    const y = height / 2 + radius * Math.sin(angle + rotation);
+
+    if (step === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+
+  ctx.stroke();
+}
+
+function animate(time) {
+  if (startTime === null) startTime = time;
+
+  // مدة رسم الوردة بالكامل حوالي 7 ثوانٍ.
+  const progress = Math.min((time - startTime) / 7000, 1) * layers;
+  const completed = Math.floor(progress);
+
+  ctx.clearRect(0, 0, width, height);
+
+  for (let layer = 0; layer < completed; layer++) {
+    drawLayer(layer);
+  }
+
+  if (completed < layers) {
+    drawLayer(completed, progress - completed);
+    frame = requestAnimationFrame(animate);
+  }
+}
+
+window.addEventListener("resize", resize);
+resize();
+</script>
+</body>
+</html>
